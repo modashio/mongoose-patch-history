@@ -31,6 +31,7 @@ const PostSchema = new Schema(
   {
     title: String,
     tags: { type: [String], default: void 0 },
+    active: { type: Boolean, default: false },
   },
   { timestamps: true }
 )
@@ -179,7 +180,10 @@ describe('mongoose-patch-history', () => {
             assert.equal(patches.length, 1)
             assert.equal(
               JSON.stringify(patches[0].ops),
-              JSON.stringify([{ op: 'add', path: '/title', value: 'foo' }])
+              JSON.stringify([
+                { op: 'add', path: '/active', value: false },
+                { op: 'add', path: '/title', value: 'foo' },
+              ])
             )
           }),
         // with referenced user
@@ -326,6 +330,31 @@ describe('mongoose-patch-history', () => {
   })
 
   describe('updating a document via findOneAndUpdate()', () => {
+    it('upserts a new document', (done) => {
+      Post.findOneAndUpdate(
+        { title: 'doesNotExist' },
+        { title: 'findOneAndUpdate' },
+        {
+          upsert: true,
+          new: true,
+        }
+      )
+        .then(() => Post.findOne({ title: 'findOneAndUpdate' }))
+        .then((post) => post.patches.find({ ref: post._id }).sort({ _id: 1 }))
+        .then((patches) => {
+          assert.equal(patches.length, 1)
+          assert.equal(
+            JSON.stringify(patches[0].ops),
+            JSON.stringify([
+              { op: 'add', path: '/active', value: false },
+              { op: 'add', path: '/title', value: 'findOneAndUpdate' },
+            ])
+          )
+        })
+        .then(done)
+        .catch(done)
+    })
+
     it('with changes: adds a patch', (done) => {
       Post.create({ title: 'findOneAndUpdate1' })
         .then((post) =>
@@ -538,14 +567,17 @@ describe('mongoose-patch-history', () => {
           assert.equal(patches.length, 1)
           assert.equal(
             JSON.stringify(patches[0].ops),
-            JSON.stringify([{ op: 'add', path: '/title', value: 'upsert1' }])
+            JSON.stringify([
+              { op: 'add', path: '/active', value: false },
+              { op: 'add', path: '/title', value: 'upsert1' },
+            ])
           )
         })
         .then(done)
         .catch(done)
     })
 
-    it('without changes: adds a patch', (done) => {
+    it('without changes: doesn`t add a patch', (done) => {
       Post.update(
         { title: 'upsert1' },
         { title: 'upsert1' },
@@ -554,7 +586,7 @@ describe('mongoose-patch-history', () => {
         .then(() => Post.find({ title: 'upsert1' }))
         .then((posts) => posts[0].patches.find({ ref: posts[0].id }))
         .then((patches) => {
-          assert.equal(patches.length, 2)
+          assert.equal(patches.length, 1)
         })
         .then(done)
         .catch(done)
