@@ -130,11 +130,11 @@ const isIntegerGreaterEqual0 = (entry) =>
 const toJSON = (obj) => JSON.parse(JSON.stringify(obj))
 
 // helper function to merge query conditions after an update has happened
-// usefull if a property which was initially defined in _conditions got overwritten
+// useful if a property which was initially defined in _conditions got overwritten
 // with the update
 const mergeQueryConditionsWithUpdate = (_conditions, _update) => {
   const update = _update ? _update.$set || _update : _update
-  const conditions = Object.assign({}, conditions, update)
+  const conditions = Object.assign({}, _conditions, update)
 
   // excluding updates other than $set
   Object.keys(conditions).forEach((key) => {

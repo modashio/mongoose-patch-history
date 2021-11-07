@@ -1,0 +1,9 @@
+{
+  "timeout": 5000,
+  "reporter": "spec",
+  "colors": true,
+  "ui": "bdd",
+  "recursive": true,
+  "require": ["@babel/register"],
+  "exit": true
+}
