@@ -727,6 +727,56 @@ describe('mongoose-patch-history', () => {
     })
   })
 
+  describe('timestamps', () => {
+    it('creates doc and sets mongoose timestamp fields', (done) => {
+      Post.create({ title: 'ts1' })
+        .then((post) =>
+          post.patches
+            .find({ ref: post._id })
+            .sort({ _id: 1 })
+            .then((patches) => {
+              assert.equal(patches.length, 1)
+              assert.equal(
+                patches[0].date.toUTCString(),
+                post.createdAt.toUTCString()
+              )
+              assert.equal(
+                patches[0].date.toUTCString(),
+                post.updatedAt.toUTCString()
+              )
+            })
+        )
+        .then(done)
+        .catch(done)
+    })
+
+    it('updates doc and sets mongoose timestamp fields', (done) => {
+      Post.create({ title: 'ts2' })
+        .then(({ _id }) =>
+          Post.updateOne({ _id }, { $set: { title: 'ts2.1' } })
+        )
+        .then(() => Post.findOne({ title: 'ts2.1' }))
+        .then((post) =>
+          post.patches
+            .find({ ref: post._id })
+            .sort({ _id: 1 })
+            .then((patches) => {
+              assert.equal(patches.length, 2)
+              assert.equal(
+                patches[0].date.toUTCString(),
+                post.createdAt.toUTCString()
+              )
+              assert.equal(
+                patches[1].date.toUTCString(),
+                post.updatedAt.toUTCString()
+              )
+            })
+        )
+        .then(done)
+        .catch(done)
+    })
+  })
+
   describe('jsonpatch.compare', () => {
     let Organization
     let Person

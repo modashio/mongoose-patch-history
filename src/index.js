@@ -289,7 +289,12 @@ export default function (schema, opts) {
     }
 
     // assemble patch data
-    const data = { ops, ref }
+    const data = {
+      ops,
+      ref,
+      date: document.updatedAt || document.createdAt,
+    }
+
     each(options.includes, (type, name) => {
       data[name] =
         document[type.from || name] || queryOptions[type.from || name]
