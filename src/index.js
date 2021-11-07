@@ -258,7 +258,7 @@ export default function (schema, opts) {
   function createPatch(document, queryOptions = {}) {
     const { _id: ref } = document
     let ops = jsonpatch.compare(
-      document.isNew ? {} : document._original || {},
+      document._original || {},
       toJSON(document.data())
     )
     if (options.excludes.length > 0) {
@@ -327,9 +327,10 @@ export default function (schema, opts) {
     this.model
       .findOne(this._conditions)
       .then((original) => {
-        if (original) this._originalId = original._id
-        original = original || new this.model({})
-        this._original = toJSON(original.data())
+        if (original) {
+          this._originalId = original._id
+          this._original = toJSON(original.data())
+        }
       })
       .then(() => next())
       .catch(next)
@@ -428,7 +429,7 @@ export default function (schema, opts) {
     }
   })
   schema.post('update', function (result, next) {
-    if (this.options.many) {
+    if (this.options.multi) {
       postUpdateMany.call(this, result, next)
     } else {
       postUpdateOne.call(this, result, next)
