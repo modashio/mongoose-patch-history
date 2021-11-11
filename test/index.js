@@ -108,35 +108,18 @@ describe('mongoose-patch-history', () => {
     PricePool = mongoose.model('PricePool', PricePoolSchema)
     Exclude = mongoose.model('Exclude', ExcludeSchema)
 
-    mongoose
-      .connect('mongodb://localhost/mongoose-patch-history', {
-        useNewUrlParser: true,
-        useCreateIndex: true,
-        useUnifiedTopology: true,
-        useFindAndModify: false,
-      })
-      .then(() => {
-        join(
-          Comment.deleteMany({}),
-          Comment.Patches.deleteMany({}),
-          Fruit.deleteMany({}),
-          Fruit.Patches.deleteMany({}),
-          Sport.deleteMany({}),
-          Sport.Patches.deleteMany({}),
-          Post.deleteMany({}),
-          Post.Patches.deleteMany({}),
-          User.deleteMany({}),
-          PricePool.deleteMany({}),
-          PricePool.Patches.deleteMany({}),
-          Exclude.deleteMany({}),
-          Exclude.Patches.deleteMany({})
-        )
-          .then(() => User.create())
-          .then(() => done())
-      })
+    mongoose.connect('mongodb://localhost/mongoose-patch-history').then(() => {
+      mongoose.connection.db
+        .dropDatabase()
+        .then(() => User.create())
+        .then(() => done())
+        .catch(() => done())
+    })
   })
 
-  after(() => mongoose.connection.close())
+  after((done) => {
+    mongoose.connection.close().then(() => done())
+  })
 
   describe('initialization', () => {
     const name = 'testPatches'
@@ -181,8 +164,8 @@ describe('mongoose-patch-history', () => {
             assert.equal(
               JSON.stringify(patches[0].ops),
               JSON.stringify([
-                { op: 'add', path: '/active', value: false },
                 { op: 'add', path: '/title', value: 'foo' },
+                { op: 'add', path: '/active', value: false },
               ])
             )
           }),
@@ -346,8 +329,8 @@ describe('mongoose-patch-history', () => {
           assert.equal(
             JSON.stringify(patches[0].ops),
             JSON.stringify([
-              { op: 'add', path: '/active', value: false },
               { op: 'add', path: '/title', value: 'findOneAndUpdate' },
+              { op: 'add', path: '/active', value: false },
             ])
           )
         })
@@ -568,8 +551,8 @@ describe('mongoose-patch-history', () => {
           assert.equal(
             JSON.stringify(patches[0].ops),
             JSON.stringify([
-              { op: 'add', path: '/active', value: false },
               { op: 'add', path: '/title', value: 'upsert1' },
+              { op: 'add', path: '/active', value: false },
             ])
           )
         })
@@ -829,7 +812,7 @@ describe('mongoose-patch-history', () => {
         },
       })
 
-      PersonSchema.plugin(patchHistory, { mongoose, name: 'roomPatches' })
+      PersonSchema.plugin(patchHistory, { mongoose, name: 'personPatches' })
       Person = mongoose.model('Person', PersonSchema)
     })
 
