@@ -1,11 +1,10 @@
 import assert from 'assert'
 import { Schema } from 'mongoose'
-import Promise, { join } from 'bluebird'
 import jsonpatch from 'fast-json-patch'
 import { decamelize, pascalize } from 'humps'
 import { dropRightWhile, each, map, merge, omit, get, tail } from 'lodash'
 
-export const RollbackError = function (message, extra) {
+export const RollbackError = function (message /*, extra */) {
   Error.captureStackTrace(this, this.constructor)
   this.name = 'RollbackError'
   this.message = message
@@ -52,7 +51,9 @@ const ARRAY_INDEX_WILDCARD = '*'
 const getArrayFromPath = (path) => path.replace(/^\//, '').split('/')
 
 /**
- * Checks the provided `json-patch-operation` on `excludePath`. This check joins the `path` and `value` property of the `operation` and removes any hit.
+ * Checks the provided `json-patch-operation` on `excludePath`.
+ * This check joins the `path` and `value` property of the `operation`
+ * and removes any hit.
  *
  * @param {import('fast-json-patch').Operation} patch operation to check with `excludePath`
  * @param {String[]} excludePath Path to property to remove from value of `operation`
@@ -164,7 +165,7 @@ export default function (schema, opts) {
     return this.toObject({
       depopulate: true,
       versionKey: false,
-      transform: (doc, ret, options) => {
+      transform: (doc, ret /*, options*/) => {
         delete ret._id
         // if timestamps option is set on schema, ignore timestamp fields
         if (schema.options.timestamps) {
@@ -235,10 +236,9 @@ export default function (schema, opts) {
   // when a document is removed and `removePatches` is not set to false ,
   // all patch documents from the associated patch collection are also removed
   function deletePatches(document) {
-    const { _id: ref } = document
     return document.patches
       .find({ ref: document._id })
-      .then((patches) => join(patches.map((patch) => patch.remove())))
+      .then((patches) => Promise.all(patches.map((patch) => patch.remove())))
   }
 
   schema.pre('remove', function (next) {

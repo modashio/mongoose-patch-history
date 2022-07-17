@@ -9,12 +9,15 @@
     "Brett Ausmeier <brett@ausmeier.co.za>",
     "Ava Johnson <ava.johnson@zohomail.com>"
   ],
+  "engines": {
+    "node": ">= 16.15.0"
+  },
   "license": "MIT",
   "dependencies": {
     "fast-json-patch": "^2.2.1",
     "humps": "^2.0.1",
     "lodash": "^4.17.20",
-    "mongoose": "6.0.12"
+    "mongoose": "6.4.4"
   },
   "devDependencies": {
     "@babel/cli": "7.15.7",
@@ -23,6 +26,8 @@
     "@babel/register": "7.15.3",
     "bluebird": "^3.5.1",
     "coveralls": "^3.0.0",
+    "eslint": "8.20.0",
+    "eslint-plugin-import": "2.26.0",
     "istanbul": "^0.4.5",
     "mocha": "9.1.2",
     "pre-commit": "^1.2.2",

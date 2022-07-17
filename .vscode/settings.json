@@ -1,6 +1,9 @@
 {
-    "editor.formatOnSave": true,
-    "prettier.singleQuote": true,
-    "prettier.trailingComma": "es5",
-    "prettier.semi": false
+  "editor.formatOnSave": true,
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "es5",
+  "prettier.semi": false,
+  "search.exclude": {
+    "package-lock.json": true
+  }
 }

@@ -1,120 +1,112 @@
 import assert from 'assert'
 import { map, random } from 'lodash'
-import Promise, { join } from 'bluebird'
 import mongoose, { Schema } from 'mongoose'
 import patchHistory, { RollbackError } from '../src'
 
-mongoose.Promise = Promise
-const ObjectId = mongoose.Types.ObjectId
-
-const CommentSchema = new Schema({ text: String })
-CommentSchema.virtual('user').set(function (user) {
-  this._user = user
-})
-CommentSchema.plugin(patchHistory, {
-  mongoose,
-  name: 'commentPatches',
-  removePatches: false,
-  includes: {
-    text: {
-      type: String,
-    },
-    user: {
-      type: Schema.Types.ObjectId,
-      required: true,
-      from: '_user',
-    },
-  },
-})
-
-const PostSchema = new Schema(
-  {
-    title: String,
-    tags: { type: [String], default: void 0 },
-    active: { type: Boolean, default: false },
-  },
-  { timestamps: true }
-)
-PostSchema.plugin(patchHistory, {
-  mongoose,
-  name: 'postPatches',
-  transforms: [(name) => name.toLowerCase(), () => 'post_history'],
-  includes: {
-    version: { type: Number, from: '__v' },
-    reason: { type: String, from: '__reason' },
-    user: { type: Object, from: '__user' },
-  },
-})
-
-PostSchema.virtual('user').set(function (user) {
-  this.__user = user
-})
-PostSchema.virtual('reason').set(function (reason) {
-  this.__reason = reason
-})
-
-const FruitSchema = new Schema({
-  _id: { type: String, default: random(100).toString() },
-  name: { type: String },
-})
-FruitSchema.plugin(patchHistory, { mongoose, name: 'fruitPatches' })
-
-const ExcludeSchema = new Schema({
-  name: { type: String },
-  hidden: { type: String },
-  object: {
-    hiddenProperty: { type: String },
-    array: [
-      { hidden: { type: String }, property: { hidden: { type: String } } },
-    ],
-  },
-  array: [{ hiddenProperty: { type: String }, property: { type: String } }],
-  emptyArray: [{ hiddenProperty: { type: String } }],
-})
-ExcludeSchema.plugin(patchHistory, {
-  mongoose,
-  name: 'excludePatches',
-  excludes: [
-    '/hidden',
-    '/object/hiddenProperty',
-    '/object/array/1/hidden',
-    '/object/array/*/property/hidden',
-    '/array/*/hiddenProperty',
-    '/emptyArray/*/hiddenProperty',
-  ],
-})
-
-const SportSchema = new Schema({
-  _id: { type: Number, default: random(100) },
-  name: { type: String },
-})
-SportSchema.plugin(patchHistory, { mongoose, name: 'sportPatches' })
-
-const PricePoolSchema = new Schema({
-  name: { type: String },
-  prices: [{ name: { type: String }, value: { type: Number } }],
-})
-PricePoolSchema.plugin(patchHistory, { mongoose, name: 'pricePoolPatches' })
-
 describe('mongoose-patch-history', () => {
+  const ObjectId = mongoose.Types.ObjectId
+  const CommentSchema = new Schema({ text: String }).plugin(patchHistory, {
+    mongoose,
+    name: 'commentPatches',
+    removePatches: false,
+    includes: {
+      text: {
+        type: String,
+      },
+      user: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        from: '_user',
+      },
+    },
+  })
+
+  CommentSchema.virtual('user').set(function (user) {
+    this._user = user
+  })
+
+  const PostSchema = new Schema(
+    {
+      title: String,
+      tags: { type: [String], default: void 0 },
+      active: { type: Boolean, default: false },
+    },
+    { timestamps: true }
+  ).plugin(patchHistory, {
+    mongoose,
+    name: 'postPatches',
+    transforms: [(name) => name.toLowerCase(), () => 'post_history'],
+    includes: {
+      version: { type: Number, from: '__v' },
+      reason: { type: String, from: '__reason' },
+      user: { type: Object, from: '__user' },
+    },
+  })
+  PostSchema.virtual('user').set(function (user) {
+    this.__user = user
+  })
+  PostSchema.virtual('reason').set(function (reason) {
+    this.__reason = reason
+  })
+
+  const FruitSchema = new Schema({
+    _id: { type: String, default: random(100).toString() },
+    name: { type: String },
+  }).plugin(patchHistory, { mongoose, name: 'fruitPatches' })
+
+  const ExcludeSchema = new Schema({
+    name: { type: String },
+    hidden: { type: String },
+    object: {
+      hiddenProperty: { type: String },
+      array: [
+        { hidden: { type: String }, property: { hidden: { type: String } } },
+      ],
+    },
+    array: [{ hiddenProperty: { type: String }, property: { type: String } }],
+    emptyArray: [{ hiddenProperty: { type: String } }],
+  }).plugin(patchHistory, {
+    mongoose,
+    name: 'excludePatches',
+    excludes: [
+      '/hidden',
+      '/object/hiddenProperty',
+      '/object/array/1/hidden',
+      '/object/array/*/property/hidden',
+      '/array/*/hiddenProperty',
+      '/emptyArray/*/hiddenProperty',
+    ],
+  })
+
+  const SportSchema = new Schema({
+    _id: { type: Number, default: random(100) },
+    name: { type: String },
+  }).plugin(patchHistory, { mongoose, name: 'sportPatches' })
+
+  const PricePoolSchema = new Schema({
+    name: { type: String },
+    prices: [{ name: { type: String }, value: { type: Number } }],
+  }).plugin(patchHistory, { mongoose, name: 'pricePoolPatches' })
+
   let Comment, Post, Fruit, Sport, User, PricePool, Exclude
 
   before((done) => {
-    Comment = mongoose.model('Comment', CommentSchema)
-    Post = mongoose.model('Post', PostSchema)
-    Fruit = mongoose.model('Fruit', FruitSchema)
-    Sport = mongoose.model('Sport', SportSchema)
-    User = mongoose.model('User', new Schema())
-    PricePool = mongoose.model('PricePool', PricePoolSchema)
-    Exclude = mongoose.model('Exclude', ExcludeSchema)
-
-    mongoose.connect('mongodb://localhost/mongoose-patch-history').then(() => {
-      mongoose.connection.db
-        .dropDatabase()
-        .then(() => User.create())
-        .then(() => done())
-        .catch(() => done())
-    })
+    mongoose
+      .connect('mongodb://localhost/mongoose-patch-history')
+      .then(({ connection }) => {
+        connection.db
+          .dropDatabase()
+          .then(() => {
+            Comment = mongoose.model('Comment', CommentSchema)
+            Post = mongoose.model('Post', PostSchema)
+            Fruit = mongoose.model('Fruit', FruitSchema)
+            Sport = mongoose.model('Sport', SportSchema)
+            User = mongoose.model('User', new Schema({}))
+            PricePool = mongoose.model('PricePool', PricePoolSchema)
+            Exclude = mongoose.model('Exclude', ExcludeSchema)
+          })
+          .finally(() => done())
+      })
   })
 
   after((done) => {
@@ -155,7 +147,7 @@ describe('mongoose-patch-history', () => {
 
   describe('saving a new document', () => {
     it('adds a patch', (done) => {
-      join(
+      Promise.all([
         // without referenced user
         Post.create({ title: 'foo' })
           .then((post) => post.patches.find({ ref: post.id }))
@@ -171,7 +163,7 @@ describe('mongoose-patch-history', () => {
           }),
         // with referenced user
         User.findOne()
-          .then((user) => Comment.create({ text: 'wat', user: ObjectId() }))
+          .then(() => Comment.create({ text: 'wat', user: new ObjectId() }))
           .then((comment) => comment.patches.find({ ref: comment.id }))
           .then((patches) => {
             assert.equal(patches.length, 1)
@@ -179,8 +171,8 @@ describe('mongoose-patch-history', () => {
               JSON.stringify(patches[0].ops),
               JSON.stringify([{ op: 'add', path: '/text', value: 'wat' }])
             )
-          })
-      )
+          }),
+      ])
         .then(() => done())
         .catch(done)
     })
@@ -256,7 +248,7 @@ describe('mongoose-patch-history', () => {
         .catch(done)
     })
 
-    it('without changes: doesn`t add a patch', (done) => {
+    it('without changes: does not add a patch', (done) => {
       Post.create({ title: 'baz' })
         .then((post) => post.save())
         .then((post) => post.patches.find({ ref: post.id }))
@@ -267,7 +259,7 @@ describe('mongoose-patch-history', () => {
         .catch(done)
     })
 
-    it('with changes covered by exclude: doesn`t add a patch', (done) => {
+    it('with changes covered by exclude: does not add a patch', (done) => {
       Exclude.findOne({ name: 'exclude1' })
         .then((exclude) => {
           exclude.object.hiddenProperty = 'test'
@@ -363,7 +355,7 @@ describe('mongoose-patch-history', () => {
         .catch(done)
     })
 
-    it('without changes: doesn`t add a patch', (done) => {
+    it('without changes: does not add a patch', (done) => {
       Post.findOneAndUpdate({ title: 'baz' }, {})
         .then((post) => post.patches.find({ ref: post.id }))
         .then((patches) => {
@@ -416,7 +408,7 @@ describe('mongoose-patch-history', () => {
         .catch(done)
     })
 
-    it('without changes: doesn`t add a patch', (done) => {
+    it('without changes: does not add a patch', (done) => {
       Post.updateOne({ title: 'baz' }, {})
         .then(() => Post.findOne({ title: 'baz' }))
         .then((post) => post.patches.find({ ref: post.id }))
@@ -442,7 +434,7 @@ describe('mongoose-patch-history', () => {
             { arrayFilters: [{ 'elem.name': { $eq: 'test1' } }] }
           )
         )
-        .then((res) => PricePool.Patches.find({}))
+        .then(() => PricePool.Patches.find({}))
         .then((patches) => {
           assert.equal(patches.length, 2)
         })
@@ -474,7 +466,7 @@ describe('mongoose-patch-history', () => {
         .catch(done)
     })
 
-    it('without changes: doesn`t add a patch', (done) => {
+    it('without changes: does not add a patch', (done) => {
       Post.updateMany({ title: 'baz' }, {})
         .then(() => Post.find({ title: 'baz' }))
         .then((posts) => posts[0].patches.find({ ref: posts[0].id }))
@@ -511,7 +503,7 @@ describe('mongoose-patch-history', () => {
 
     it('handles the $pull operator', (done) => {
       Post.create({ title: 'tagged2', tags: ['match'] })
-        .then((post) =>
+        .then(() =>
           // Remove the 'match' tag from all posts tagged with 'match'
           Post.updateMany(
             { tags: 'match' },
@@ -535,7 +527,7 @@ describe('mongoose-patch-history', () => {
     })
   })
 
-  describe('upserting a document', () => {
+  describe('upsert a document', () => {
     it('with changes: adds a patch', (done) => {
       Post.update(
         { title: 'upsert0' },
@@ -560,7 +552,7 @@ describe('mongoose-patch-history', () => {
         .catch(done)
     })
 
-    it('without changes: doesn`t add a patch', (done) => {
+    it('without changes: does not add a patch', (done) => {
       Post.update(
         { title: 'upsert1' },
         { title: 'upsert1' },
@@ -594,8 +586,8 @@ describe('mongoose-patch-history', () => {
   describe('update with multi', () => {
     it('should not throw "TypeError: Cannot set property _original of null" error if doc does not exist', (done) => {
       Post.update(
-        { title: { $in: ['foobar'] } },
-        { title: 'barfoo' },
+        { title: { $in: ['foo_bar'] } },
+        { title: 'bar_foo' },
         { multi: true, upsert: false }
       )
         .then(() => done())
@@ -652,7 +644,9 @@ describe('mongoose-patch-history', () => {
 
     it('to latest patch is rejected', (done) => {
       Post.create({ title: 'version 1' })
-        .then((post) => join(post, post.patches.findOne({ ref: post.id })))
+        .then((post) =>
+          Promise.all([post, post.patches.findOne({ ref: post.id })])
+        )
         .then(([post, latestPatch]) => {
           return post
             .rollback(latestPatch.id)
@@ -673,7 +667,7 @@ describe('mongoose-patch-history', () => {
         .then((c) => Comment.findOne({ _id: c.id }))
         .then((c) => c.set({ text: 'comm 3', user: ObjectId() }).save())
         .then((c) => Comment.findOne({ _id: c.id }))
-        .then((c) => join(c, c.patches.find({ ref: c.id })))
+        .then((c) => Promise.all([c, c.patches.find({ ref: c.id })]))
         .then(([c, patches]) => c.rollback(patches[1].id, { user: ObjectId() }))
         .then((c) => {
           assert.equal(c.text, 'comm 2')
@@ -691,7 +685,7 @@ describe('mongoose-patch-history', () => {
         .then((c) => Comment.findOne({ _id: c.id }))
         .then((c) => c.set({ text: 'comm 3', user: ObjectId() }).save())
         .then((c) => Comment.findOne({ _id: c.id }))
-        .then((c) => join(c, c.patches.find({ ref: c.id })))
+        .then((c) => Promise.all([c, c.patches.find({ ref: c.id })]))
         .then(([c, patches]) =>
           c.rollback(patches[1].id, { user: ObjectId() }, false)
         )
@@ -720,23 +714,23 @@ describe('mongoose-patch-history', () => {
     }
 
     it('pascalize for model and decamelize for collection', (done) => {
-      join(
+      Promise.all([
         () => assert(!!~mongoose.modelNames().indexOf('CommentPatches')),
         getCollectionNames().then((names) => {
           assert(!!~names.indexOf('comment_patches'))
-        })
-      )
+        }),
+      ])
         .then(() => done())
         .catch(done)
     })
 
     it('uses `transform` option when set', (done) => {
-      join(
-        () => assert(!!~mongoose.modelNames().indexOf('postpatches')),
+      Promise.all([
+        () => assert(!!~mongoose.modelNames().indexOf('postPatches')),
         getCollectionNames().then((names) => {
           assert(!!~names.indexOf('post_history'))
-        })
-      )
+        }),
+      ])
         .then(() => done())
         .catch(done)
     })
@@ -818,14 +812,20 @@ describe('mongoose-patch-history', () => {
 
     it('is able to handle ObjectId references correctly', (done) => {
       Organization.create({ text: 'Home' })
-        .then((o1) => join(o1, Organization.create({ text: 'Work' })))
+        .then((o1) => Promise.all([o1, Organization.create({ text: 'Work' })]))
         .then(([o1, o2]) =>
-          join(o1, o2, Person.create({ name: 'Bob', organization: o1._id }))
+          Promise.all([
+            o1,
+            o2,
+            Person.create({ name: 'Bob', organization: o1._id }),
+          ])
         )
         .then(([o1, o2, p]) =>
-          join(o1, o2, p.set({ organization: o2._id }).save())
+          Promise.all([o1, o2, p.set({ organization: o2._id }).save()])
         )
-        .then(([o1, o2, p]) => join(o1, o2, p.patches.find({ ref: p.id })))
+        .then(([o1, o2, p]) =>
+          Promise.all([o1, o2, p.patches.find({ ref: p.id })])
+        )
         .then(([o1, o2, patches]) => {
           const pathFilter = (path) => (elem) => elem.path === path
           const firstOrganizationOperation = patches[0].ops.find(
@@ -862,7 +862,9 @@ describe('mongoose-patch-history', () => {
     })
 
     after((done) => {
-      join(Company.remove(), Company.Patches.remove()).then(() => done())
+      Promise.all([Company.remove(), Company.Patches.remove()]).then(() =>
+        done()
+      )
     })
 
     it('stores the original value in the ops entries', (done) => {
