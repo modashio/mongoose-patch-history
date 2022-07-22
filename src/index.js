@@ -80,21 +80,28 @@ const deepRemovePath = (patch, excludePath) => {
         })
 
         // If the patch value has turned to {} return false so this patch can be filtered out
-        if (Object.keys(patch.value).length === 0) return false
+        if (Object.keys(patch.value).length === 0) {
+          return false
+        }
         return true
       }
       value = value[excludePath[i]]
 
-      if (typeof value === 'undefined') return true
+      if (typeof value === 'undefined') {
+        return true
+      }
     }
-    if (typeof value[excludePath[excludePath.length - 1]] === 'undefined')
+    if (typeof value[excludePath[excludePath.length - 1]] === 'undefined') {
       return true
-    else {
+    } else {
       delete value[excludePath[excludePath.length - 1]]
       // If the patch value has turned to {} return false so this patch can be filtered out
-      if (Object.keys(patch.value).length === 0) return false
+      if (Object.keys(patch.value).length === 0) {
+        return false
+      }
     }
   }
+
   return true
 }
 
@@ -139,7 +146,9 @@ const mergeQueryConditionsWithUpdate = (_conditions, _update) => {
 
   // excluding updates other than $set
   Object.keys(conditions).forEach((key) => {
-    if (key.includes('$')) delete conditions[key]
+    if (key.includes('$')) {
+      delete conditions[key]
+    }
   })
   return conditions
 }
@@ -214,7 +223,9 @@ export default function (schema, opts) {
             // in case of save, save it back to the db and resolve
             if (save) {
               this.save().then(resolve).catch(reject)
-            } else resolve(this)
+            } else {
+              resolve(this)
+            }
           })
       )
   }
@@ -337,35 +348,35 @@ export default function (schema, opts) {
   }
 
   schema.post('findOneAndUpdate', function (doc, next) {
-    if (!this.options.new) {
-      return postUpdateOne.call(this, {}, next)
-    }
-
-    if (this.options.new && this.options.rawResult) {
-      doc = doc.value
-    }
-
-    doc._original = this._original
-    createPatch(doc, this.options)
-      .then(() => next())
-      .catch(next)
+    postUpdateOne.call(this, doc, next)
   })
 
   function postUpdateOne(result, next) {
-    if (result.nModified === 0 && !result.upserted) return next()
+    // result might be a mongodb ModifyResult, null or a Document
+    if (result?.lastErrorObject?.n === 0 && result?.upsertedCount === 0) {
+      return next()
+    }
 
     let conditions
-    if (this._originalId) conditions = { _id: { $eq: this._originalId } }
-    else
+    if (this._originalId) {
+      conditions = {
+        _id: {
+          $eq: this._originalId,
+        },
+      }
+    } else {
       conditions = mergeQueryConditionsWithUpdate(
         this._conditions,
         this._update
       )
+    }
 
     this.model
       .findOne(conditions)
       .then((doc) => {
-        if (!doc) return next()
+        if (!doc) {
+          return
+        }
         doc._original = this._original
         return createPatch(doc, this.options)
       })
@@ -394,15 +405,20 @@ export default function (schema, opts) {
   }
 
   function postUpdateMany(result, next) {
-    if (result.nModified === 0 && !result.upserted) return next()
+    // result might be a mongodb ModifyResult, null or a Document
+    if (result?.lastErrorObject?.n === 0 && result?.upsertedCount === 0) {
+      return next()
+    }
 
     let conditions
-    if (this._originalIds.length === 0)
+    if (this._originalIds.length === 0) {
       conditions = mergeQueryConditionsWithUpdate(
         this._conditions,
         this._update
       )
-    else conditions = { _id: { $in: this._originalIds } }
+    } else {
+      conditions = { _id: { $in: this._originalIds } }
+    }
 
     this.model
       .find(conditions)

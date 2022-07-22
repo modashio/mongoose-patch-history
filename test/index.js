@@ -89,7 +89,6 @@ describe('mongoose-patch-history', () => {
   }).plugin(patchHistory, { mongoose, name: 'pricePoolPatches' })
 
   let Comment, Post, Fruit, Sport, User, PricePool, Exclude
-
   before((done) => {
     mongoose
       .connect('mongodb://localhost/mongoose-patch-history')
@@ -358,32 +357,40 @@ describe('mongoose-patch-history', () => {
     it('without changes: does not add a patch', (done) => {
       Post.findOneAndUpdate({ title: 'baz' }, {})
         .then((post) => post.patches.find({ ref: post.id }))
-        .then((patches) => {
-          assert.equal(patches.length, 1)
-        })
+        .then((patches) => assert.equal(patches.length, 1))
         .then(done)
         .catch(done)
     })
 
-    it('should not throw "TypeError: Cannot set property _original of null" error if doc does not exist', (done) => {
-      Post.findOneAndUpdate(
+    it('should not throw "TypeError: Cannot set property _original of null" error if doc does not exist', async () => {
+      await Post.findOneAndUpdate(
         { title: 'the_answer_to_life' },
         { title: '42', comments: 'thanks for all the fish' }
       )
-        .then(() => {
-          done()
-        })
-        .catch(done)
+        .then((post) => assert.strictEqual(post, null))
+        .catch((e) => assert.fail(e.message))
     })
 
-    it('should work with options { new:true, rawResult:true }', (done) => {
-      Post.findOneAndUpdate(
-        { title: 'findOneAndUpdate2' },
-        { title: 'findOneAndUpdate1' },
-        { new: true, rawResult: true }
+    it('with options: { new: true }', async () => {
+      const title = 'findOneAndUpdateNewTrue'
+      await Post.create({ title })
+      await Post.findOneAndUpdate({ title }, { title: 'baz' }, { new: true })
+        .then((post) => post.patches.find({ ref: post._id }))
+        .then((patches) => assert.strictEqual(patches.length, 2))
+        .catch((e) => assert.fail(e.message))
+    })
+
+    it('with options: { rawResult: true }', async () => {
+      const title = 'findOneAndUpdateRawResultTrue'
+      await Post.create({ title })
+      await Post.findOneAndUpdate(
+        { title },
+        { title: 'baz' },
+        { rawResult: true }
       )
-        .then(() => done())
-        .catch(done)
+        .then((post) => post.value.patches.find({ ref: post.value._id }))
+        .then((patches) => assert.strictEqual(patches.length, 2))
+        .catch((e) => assert.fail(e.message))
     })
   })
 
@@ -707,7 +714,9 @@ describe('mongoose-patch-history', () => {
     const getCollectionNames = () => {
       return new Promise((resolve, reject) => {
         mongoose.connection.db.listCollections().toArray((err, collections) => {
-          if (err) return reject(err)
+          if (err) {
+            return reject(err)
+          }
           resolve(map(collections, 'name'))
         })
       })
