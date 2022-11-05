@@ -16,19 +16,21 @@
   "dependencies": {
     "fast-json-patch": "^2.2.1",
     "humps": "^2.0.1",
-    "lodash": "^4.17.20",
-    "mongoose": "6.4.4"
+    "lodash": "^4.17.20"
+  },
+  "peerDependencies": {
+    "mongoose": "^6"
   },
   "devDependencies": {
-    "@babel/cli": "7.15.7",
-    "@babel/core": "7.15.8",
-    "@babel/preset-env": "7.15.8",
-    "@babel/register": "7.15.3",
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "7.20.2",
+    "@babel/preset-env": "7.20.2",
+    "@babel/register": "7.18.9",
     "coveralls": "^3.0.0",
-    "eslint": "8.20.0",
-    "eslint-plugin-import": "2.26.0",
+    "eslint": "^8.26.0",
+    "eslint-plugin-import": "^2.26.0",
     "istanbul": "^0.4.5",
-    "mocha": "9.1.2",
+    "mocha": "^9.1.2",
     "pre-commit": "^1.2.2",
     "prettier": "^2.1.1"
   },

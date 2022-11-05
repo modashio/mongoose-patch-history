@@ -91,7 +91,7 @@ describe('mongoose-patch-history', () => {
   let Comment, Post, Fruit, Sport, User, PricePool, Exclude
   before((done) => {
     mongoose
-      .connect('mongodb://localhost/mongoose-patch-history')
+      .connect('mongodb://localhost:27017/mongoose-patch-history')
       .then(({ connection }) => {
         connection.db
           .dropDatabase()
