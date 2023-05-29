@@ -536,7 +536,7 @@ describe('mongoose-patch-history', () => {
 
   describe('upsert a document', () => {
     it('with changes: adds a patch', (done) => {
-      Post.update(
+      Post.updateMany(
         { title: 'upsert0' },
         { title: 'upsert1' },
         { upsert: true, multi: true }
@@ -560,7 +560,7 @@ describe('mongoose-patch-history', () => {
     })
 
     it('without changes: does not add a patch', (done) => {
-      Post.update(
+      Post.updateMany(
         { title: 'upsert1' },
         { title: 'upsert1' },
         { upsert: true, multi: true }
@@ -592,7 +592,7 @@ describe('mongoose-patch-history', () => {
 
   describe('update with multi', () => {
     it('should not throw "TypeError: Cannot set property _original of null" error if doc does not exist', (done) => {
-      Post.update(
+      Post.updateMany(
         { title: { $in: ['foo_bar'] } },
         { title: 'bar_foo' },
         { multi: true, upsert: false }
