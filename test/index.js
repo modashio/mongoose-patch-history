@@ -86,12 +86,18 @@ describe('mongoose-patch-history', () => {
   const PricePoolSchema = new Schema({
     name: { type: String },
     prices: [{ name: { type: String }, value: { type: Number } }],
-  }).plugin(patchHistory, { mongoose, name: 'pricePoolPatches' })
+  }).plugin(patchHistory, {
+    mongoose,
+    name: 'pricePoolPatches',
+    trackOriginalValue: true,
+  })
 
   let Comment, Post, Fruit, Sport, User, PricePool, Exclude
   before((done) => {
     mongoose
-      .connect('mongodb://localhost:27017/mongoose-patch-history')
+      .connect(
+        'mongodb://root:root@localhost:27017/mongoose-patch-history?&authSource=admin&directConnection=true'
+      )
       .then(({ connection }) => {
         connection.db
           .dropDatabase()
@@ -435,7 +441,7 @@ describe('mongoose-patch-history', () => {
         ],
       })
         .then((pricePool) =>
-          PricePool.updateOne(
+          PricePool.updateMany(
             { name: pricePool.name },
             { $set: { 'prices.$[elem].value': 3 } },
             { arrayFilters: [{ 'elem.name': { $eq: 'test1' } }] }

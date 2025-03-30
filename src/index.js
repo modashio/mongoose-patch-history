@@ -1,8 +1,8 @@
 import assert from 'assert'
-import { Schema } from 'mongoose'
 import jsonpatch from 'fast-json-patch'
 import { decamelize, pascalize } from 'humps'
-import { dropRightWhile, each, map, merge, omit, get, tail } from 'lodash'
+import { dropRightWhile, each, get, map, merge, omit, tail } from 'lodash'
+import { Schema } from 'mongoose'
 
 export const RollbackError = function (message /*, extra */) {
   Error.captureStackTrace(this, this.constructor)
@@ -325,8 +325,11 @@ export default function (schema, opts) {
       return next()
     }
 
+    const session = this.getOptions().session
+
     this.model
       .findOne(this._conditions)
+      .session(session)
       .then((original) => deletePatches(original))
       .then(() => next())
       .catch(next)
@@ -335,8 +338,11 @@ export default function (schema, opts) {
   schema.pre('findOneAndUpdate', preUpdateOne)
 
   function preUpdateOne(next) {
+    const session = this.getOptions().session
+
     this.model
       .findOne(this._conditions)
+      .session(session)
       .then((original) => {
         if (original) {
           this._originalId = original._id
@@ -371,8 +377,11 @@ export default function (schema, opts) {
       )
     }
 
+    const session = this.getOptions().session
+
     this.model
       .findOne(conditions)
+      .session(session)
       .then((doc) => {
         if (!doc) {
           return
@@ -388,8 +397,11 @@ export default function (schema, opts) {
   schema.post('updateOne', postUpdateOne)
 
   function preUpdateMany(next) {
+    const session = this.getOptions().session
+
     this.model
       .find(this._conditions)
+      .session(session)
       .then((originals) => {
         const originalIds = []
         const originalData = []
@@ -420,8 +432,11 @@ export default function (schema, opts) {
       conditions = { _id: { $in: this._originalIds } }
     }
 
+    const session = this.getOptions().session
+
     this.model
       .find(conditions)
+      .session(session)
       .then((docs) =>
         Promise.all(
           docs.map((doc, i) => {
