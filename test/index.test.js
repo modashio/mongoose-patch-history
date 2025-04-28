@@ -375,7 +375,7 @@ describe('mongoose-patch-history', () => {
         { rawResult: true }
       )
 
-      const patches = await post.value.patches.find({ ref: post.value._id })
+      const patches = await post.patches.find({ ref: post._id })
 
       expect(patches.length).toBe(2)
     })
@@ -554,27 +554,27 @@ describe('mongoose-patch-history', () => {
   describe('removing a document', () => {
     it('removes all patches', async () => {
       const post = await Post.findOne({ title: 'bar' })
-      await post.remove()
+      await post.deleteOne()
 
-      const patches = await post.patches.find({ ref: post.id })
+      const patches = await post.patches.find({ ref: post._id })
 
       expect(patches.length).toBe(0)
     })
 
     it("doesn't remove patches when `removePatches` is false", async () => {
       const comment = await Comment.findOne({ text: 'wat' })
-      await comment.remove()
+      await comment.deleteOne()
 
       const patches = await comment.patches.find({ ref: comment.id })
 
       expect(patches.length).toBe(1)
     })
 
-    it('removes all patches via findOneAndRemove()', async () => {
-      const post = await Post.create({ title: 'findOneAndRemove1' })
-      const removedPost = await Post.findOneAndRemove({ _id: post.id })
+    it('removes all patches via deleteOne()', async () => {
+      const post = await Post.create({ title: 'deleteOne1' })
+      await Post.deleteOne({ _id: post._id })
 
-      const patches = await removedPost.patches.find({ ref: removedPost.id })
+      const patches = await post.patches.find({ ref: post._id })
 
       expect(patches.length).toBe(0)
     })
@@ -584,7 +584,7 @@ describe('mongoose-patch-history', () => {
     it('with unknown id is rejected', async () => {
       const post = await Post.create({ title: 'version 1' })
 
-      await expect(post.rollback(ObjectId())).rejects.toThrow(RollbackError)
+      await expect(post.rollback(new ObjectId())).rejects.toThrow(RollbackError)
     })
 
     it('to latest patch is rejected', async () => {
@@ -595,15 +595,15 @@ describe('mongoose-patch-history', () => {
     })
 
     it('adds a new patch and updates the document', async () => {
-      let c = await Comment.create({ text: 'comm 1', user: ObjectId() })
+      let c = await Comment.create({ text: 'comm 1', user: new ObjectId() })
       c = await Comment.findOne({ _id: c.id })
-      c = await c.set({ text: 'comm 2', user: ObjectId() }).save()
+      c = await c.set({ text: 'comm 2', user: new ObjectId() }).save()
       c = await Comment.findOne({ _id: c.id })
-      c = await c.set({ text: 'comm 3', user: ObjectId() }).save()
+      c = await c.set({ text: 'comm 3', user: new ObjectId() }).save()
       c = await Comment.findOne({ _id: c.id })
 
       const patches = await c.patches.find({ ref: c.id })
-      c = await c.rollback(patches[1].id, { user: ObjectId() })
+      c = await c.rollback(patches[1].id, { user: new ObjectId() })
 
       expect(c.text).toBe('comm 2')
       const finalPatches = await c.patches.find({ ref: c.id })
@@ -611,15 +611,15 @@ describe('mongoose-patch-history', () => {
     })
 
     it("updates but doesn't save the document", async () => {
-      let c = await Comment.create({ text: 'comm 1', user: ObjectId() })
+      let c = await Comment.create({ text: 'comm 1', user: new ObjectId() })
       c = await Comment.findOne({ _id: c.id })
-      c = await c.set({ text: 'comm 2', user: ObjectId() }).save()
+      c = await c.set({ text: 'comm 2', user: new ObjectId() }).save()
       c = await Comment.findOne({ _id: c.id })
-      c = await c.set({ text: 'comm 3', user: ObjectId() }).save()
+      c = await c.set({ text: 'comm 3', user: new ObjectId() }).save()
       c = await Comment.findOne({ _id: c.id })
 
       const patches = await c.patches.find({ ref: c.id })
-      c = await c.rollback(patches[1].id, { user: ObjectId() }, false)
+      c = await c.rollback(patches[1].id, { user: new ObjectId() }, false)
 
       expect(c.text).toBe('comm 2')
       const dbC = await Comment.findOne({ _id: c.id })

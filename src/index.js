@@ -239,12 +239,11 @@ export default function (schema, opts) {
 
   // when a document is removed and `removePatches` is not set to false ,
   // all patch documents from the associated patch collection are also removed
-  async function deletePatches(document) {
-    const patches = await document.patches.find({ ref: document._id })
-    return Promise.all(patches.map((patch) => patch.remove()))
+  async function deletePatches(query) {
+    await Patches.deleteMany({ ref: query.getFilter()._id })
   }
 
-  schema.pre('remove', async function () {
+  schema.pre('deleteOne', async function () {
     if (!options.removePatches) {
       return
     }
