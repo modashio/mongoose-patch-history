@@ -19,7 +19,7 @@
     "lodash": "^4.17.20"
   },
   "peerDependencies": {
-    "mongoose": "^8"
+    "mongoose": "^6"
   },
   "devDependencies": {
     "@babel/cli": "^7.19.3",
