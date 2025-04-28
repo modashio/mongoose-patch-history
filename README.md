@@ -38,9 +38,10 @@ const Post = mongoose.model('Post', PostSchema)
 Continuing the previous example, a new patch is added to the associated patch collection whenever a new post is added to the posts collection:
 
 ```javascript
-Post.create({ title: 'JSON patches' })
-  .then(post => post.patches.findOne({ ref: post.id }))
-  .then(console.log)
+// Using async/await
+const post = await Post.create({ title: 'JSON patches' });
+const patch = await post.patches.findOne({ ref: post.id });
+console.log(patch);
 
 // {
 //   _id: ObjectId('4edd40c86762e0fb12000003'),
@@ -64,10 +65,11 @@ const data = {
   comments: [{ message: 'Wow! Such Mongoose! Very NoSQL!' }],
 }
 
-Post.create({ title: 'JSON patches' })
-  .then(post => post.set(data).save())
-  .then(post => post.patches.find({ ref: post.id }))
-  .then(console.log)
+// Using async/await
+const post = await Post.create({ title: 'JSON patches' });
+await post.set(data).save();
+const patches = await post.patches.find({ ref: post.id });
+console.log(patches);
 
 // [{
 //   _id: ObjectId('4edd40c86762e0fb12000003'),
@@ -93,21 +95,22 @@ Post.create({ title: 'JSON patches' })
 ### Rollback to a specific patch
 
 ```javascript
-rollback(ObjectId, data, save)
+await rollback(ObjectId, data, save)
 ```
 
 Documents have a `rollback` method that accepts the _ObjectId_ of a patch doc and sets the document to the state of that patch, adding a new patch to the history.
 
 ```javascript
-Post.create({ title: 'First version' })
-  .then(post => post.set({ title: 'Second version' }).save())
-  .then(post => post.set({ title: 'Third version' }).save())
-  .then(post => {
-    return post.patches
-      .find({ ref: post.id })
-      .then(patches => post.rollback(patches[1].id))
-  })
-  .then(console.log)
+// Using async/await syntax
+const post = await Post.create({ title: 'First version' });
+post.set({ title: 'Second version' });
+await post.save();
+post.set({ title: 'Third version' });
+await post.save();
+
+const patches = await post.patches.find({ ref: post.id });
+const rolledBackPost = await post.rollback(patches[1].id);
+console.log(rolledBackPost);
 
 // {
 //   _id: ObjectId('4edd40c86762e0fb12000006'),

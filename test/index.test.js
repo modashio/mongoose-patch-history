@@ -104,9 +104,7 @@ describe('mongoose-patch-history', () => {
 
   let Comment, Post, Fruit, Sport, User, PricePool, Exclude
   beforeAll(async () => {
-    await mongoose.connect(
-      'mongodb://root:root@localhost:27017/mongoose-patch-history'
-    )
+    await mongoose.connect('mongodb://localhost:27017/mongoose-patch-history')
 
     const { connection } = mongoose
     await connection.db.dropDatabase()
@@ -634,14 +632,14 @@ describe('mongoose-patch-history', () => {
 
   describe('model and collection names', () => {
     const getCollectionNames = async () => {
-      return new Promise((resolve, reject) => {
-        mongoose.connection.db.listCollections().toArray((err, collections) => {
-          if (err) {
-            return reject(err)
-          }
-          resolve(map(collections, 'name'))
-        })
-      })
+      try {
+        const collections = await mongoose.connection.db
+          .listCollections()
+          .toArray()
+        return map(collections, 'name')
+      } catch (error) {
+        throw error
+      }
     }
 
     it('pascalize for model and decamelize for collection', async () => {

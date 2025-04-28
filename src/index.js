@@ -186,48 +186,41 @@ export default function (schema, opts) {
   }
 
   // roll the document back to the state of a given patch id()
-  schema.methods.rollback = function (patchId, data, save = true) {
-    return this.patches
+  schema.methods.rollback = async function (patchId, data, save = true) {
+    const patches = await this.patches
       .find({ ref: this.id })
       .sort({ date: 1 })
       .exec()
-      .then(
-        (patches) =>
-          new Promise((resolve, reject) => {
-            // patch doesn't exist
-            if (!~map(patches, 'id').indexOf(patchId)) {
-              return reject(new RollbackError("patch doesn't exist"))
-            }
 
-            // get all patches that should be applied
-            const apply = dropRightWhile(
-              patches,
-              (patch) => patch.id !== patchId
-            )
+    // patch doesn't exist
+    if (!~map(patches, 'id').indexOf(patchId)) {
+      throw new RollbackError("patch doesn't exist")
+    }
 
-            // if the patches that are going to be applied are all existing patches,
-            // the rollback attempts to rollback to the latest patch
-            if (patches.length === apply.length) {
-              return reject(new RollbackError('rollback to latest patch'))
-            }
+    // get all patches that should be applied
+    const apply = dropRightWhile(patches, (patch) => patch.id !== patchId)
 
-            // apply patches to `state`
-            const state = {}
-            apply.forEach((patch) => {
-              jsonpatch.applyPatch(state, patch.ops, true)
-            })
+    // if the patches that are going to be applied are all existing patches,
+    // the rollback attempts to rollback to the latest patch
+    if (patches.length === apply.length) {
+      throw new RollbackError('rollback to latest patch')
+    }
 
-            // set new state
-            this.set(merge(data, state))
+    // apply patches to `state`
+    const state = {}
+    apply.forEach((patch) => {
+      jsonpatch.applyPatch(state, patch.ops, true)
+    })
 
-            // in case of save, save it back to the db and resolve
-            if (save) {
-              this.save().then(resolve).catch(reject)
-            } else {
-              resolve(this)
-            }
-          })
-      )
+    // set new state
+    this.set(merge(data, state))
+
+    // in case of save, save it back to the db and resolve
+    if (save) {
+      return await this.save()
+    } else {
+      return this
+    }
   }
 
   // create patch model, enable static model access via `Patches` and
@@ -246,27 +239,28 @@ export default function (schema, opts) {
 
   // when a document is removed and `removePatches` is not set to false ,
   // all patch documents from the associated patch collection are also removed
-  function deletePatches(document) {
-    return document.patches
-      .find({ ref: document._id })
-      .then((patches) => Promise.all(patches.map((patch) => patch.remove())))
+  async function deletePatches(document) {
+    const patches = await document.patches.find({ ref: document._id })
+    return Promise.all(patches.map((patch) => patch.remove()))
   }
 
-  schema.pre('remove', function (next) {
+  schema.pre('remove', async function () {
     if (!options.removePatches) {
-      return next()
+      return
     }
 
-    deletePatches(this)
-      .then(() => next())
-      .catch(next)
+    try {
+      await deletePatches(this)
+    } catch (error) {
+      throw error
+    }
   })
 
   // when a document is saved, the json patch that reflects the changes is
   // computed. if the patch consists of one or more operations (meaning the
   // document has changed), a new patch document reflecting the changes is
   // added to the associated patch collection
-  function createPatch(document, queryOptions = {}) {
+  async function createPatch(document, queryOptions = {}) {
     const { _id: ref } = document
     let ops = jsonpatch.compare(
       document._original || {},
@@ -285,7 +279,7 @@ export default function (schema, opts) {
 
     // don't save a patch when there are no changes to save
     if (!ops.length) {
-      return Promise.resolve()
+      return
     }
 
     // track original values if enabled
@@ -311,56 +305,64 @@ export default function (schema, opts) {
         document[type.from || name] || queryOptions[type.from || name]
     })
 
-    return document.patches.create(data)
+    return await document.patches.create(data)
   }
 
-  schema.pre('save', function (next) {
-    createPatch(this)
-      .then(() => next())
-      .catch(next)
+  schema.pre('save', async function () {
+    try {
+      await createPatch(this)
+    } catch (error) {
+      throw error
+    }
   })
 
-  schema.pre('findOneAndRemove', function (next) {
+  schema.pre('findOneAndRemove', async function () {
     if (!options.removePatches) {
-      return next()
+      return
     }
 
     const session = this.getOptions().session
 
-    this.model
-      .findOne(this._conditions)
-      .session(session)
-      .then((original) => deletePatches(original))
-      .then(() => next())
-      .catch(next)
+    try {
+      const original = await this.model
+        .findOne(this._conditions)
+        .session(session)
+      await deletePatches(original)
+    } catch (error) {
+      throw error
+    }
   })
 
   schema.pre('findOneAndUpdate', preUpdateOne)
 
-  function preUpdateOne(next) {
+  async function preUpdateOne() {
     const session = this.getOptions().session
 
-    this.model
-      .findOne(this._conditions)
-      .session(session)
-      .then((original) => {
-        if (original) {
-          this._originalId = original._id
-          this._original = toJSON(original.data())
-        }
-      })
-      .then(() => next())
-      .catch(next)
+    try {
+      const original = await this.model
+        .findOne(this._conditions)
+        .session(session)
+      if (original) {
+        this._originalId = original._id
+        this._original = toJSON(original.data())
+      }
+    } catch (error) {
+      throw error
+    }
   }
 
-  schema.post('findOneAndUpdate', function (doc, next) {
-    postUpdateOne.call(this, doc, next)
+  schema.post('findOneAndUpdate', async function (doc) {
+    try {
+      await postUpdateOne.call(this, doc)
+    } catch (error) {
+      throw error
+    }
   })
 
-  function postUpdateOne(result, next) {
+  async function postUpdateOne(result) {
     // result might be a mongodb ModifyResult, null or a Document
     if (result?.lastErrorObject?.n === 0 && result?.upsertedCount === 0) {
-      return next()
+      return
     }
 
     let conditions
@@ -379,47 +381,49 @@ export default function (schema, opts) {
 
     const session = this.getOptions().session
 
-    this.model
-      .findOne(conditions)
-      .session(session)
-      .then((doc) => {
-        if (!doc) {
-          return
-        }
-        doc._original = this._original
-        return createPatch(doc, this.options)
-      })
-      .then(() => next())
-      .catch(next)
+    try {
+      const doc = await this.model.findOne(conditions).session(session)
+      if (!doc) {
+        return
+      }
+      doc._original = this._original
+      await createPatch(doc, this.options)
+    } catch (error) {
+      throw error
+    }
   }
 
   schema.pre('updateOne', preUpdateOne)
-  schema.post('updateOne', postUpdateOne)
+  schema.post('updateOne', async function (doc) {
+    try {
+      await postUpdateOne.call(this, doc)
+    } catch (error) {
+      throw error
+    }
+  })
 
-  function preUpdateMany(next) {
+  async function preUpdateMany() {
     const session = this.getOptions().session
 
-    this.model
-      .find(this._conditions)
-      .session(session)
-      .then((originals) => {
-        const originalIds = []
-        const originalData = []
-        for (const original of originals) {
-          originalIds.push(original._id)
-          originalData.push(toJSON(original.data()))
-        }
-        this._originalIds = originalIds
-        this._originals = originalData
-      })
-      .then(() => next())
-      .catch(next)
+    try {
+      const originals = await this.model.find(this._conditions).session(session)
+      const originalIds = []
+      const originalData = []
+      for (const original of originals) {
+        originalIds.push(original._id)
+        originalData.push(toJSON(original.data()))
+      }
+      this._originalIds = originalIds
+      this._originals = originalData
+    } catch (error) {
+      throw error
+    }
   }
 
-  function postUpdateMany(result, next) {
+  async function postUpdateMany(result) {
     // result might be a mongodb ModifyResult, null or a Document
     if (result?.lastErrorObject?.n === 0 && result?.upsertedCount === 0) {
-      return next()
+      return
     }
 
     let conditions
@@ -434,36 +438,54 @@ export default function (schema, opts) {
 
     const session = this.getOptions().session
 
-    this.model
-      .find(conditions)
-      .session(session)
-      .then((docs) =>
-        Promise.all(
-          docs.map((doc, i) => {
-            doc._original = this._originals[i]
-            return createPatch(doc, this.options)
-          })
-        )
+    try {
+      const docs = await this.model.find(conditions).session(session)
+      await Promise.all(
+        docs.map((doc, i) => {
+          doc._original = this._originals[i]
+          return createPatch(doc, this.options)
+        })
       )
-      .then(() => next())
-      .catch(next)
+    } catch (error) {
+      throw error
+    }
   }
 
-  schema.pre('updateMany', preUpdateMany)
-  schema.post('updateMany', postUpdateMany)
-
-  schema.pre('update', function (next) {
-    if (this.options.multi) {
-      preUpdateMany.call(this, next)
-    } else {
-      preUpdateOne.call(this, next)
+  schema.pre('updateMany', async function () {
+    try {
+      await preUpdateMany.call(this)
+    } catch (error) {
+      throw error
     }
   })
-  schema.post('update', function (result, next) {
-    if (this.options.multi) {
-      postUpdateMany.call(this, result, next)
-    } else {
-      postUpdateOne.call(this, result, next)
+  schema.post('updateMany', async function (result) {
+    try {
+      await postUpdateMany.call(this, result)
+    } catch (error) {
+      throw error
+    }
+  })
+
+  schema.pre('update', async function () {
+    try {
+      if (this.options.multi) {
+        await preUpdateMany.call(this)
+      } else {
+        await preUpdateOne.call(this)
+      }
+    } catch (error) {
+      throw error
+    }
+  })
+  schema.post('update', async function (result) {
+    try {
+      if (this.options.multi) {
+        await postUpdateMany.call(this, result)
+      } else {
+        await postUpdateOne.call(this, result)
+      }
+    } catch (error) {
+      throw error
     }
   })
 }
