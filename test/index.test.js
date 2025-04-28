@@ -649,7 +649,7 @@ describe('mongoose-patch-history', () => {
     })
 
     it('uses `transform` option when set', async () => {
-      expect(mongoose.modelNames().includes('postPatches')).toBe(true)
+      expect(mongoose.modelNames().includes('postpatches')).toBe(true)
       const names = await getCollectionNames()
       expect(names.includes('post_history')).toBe(true)
     })
